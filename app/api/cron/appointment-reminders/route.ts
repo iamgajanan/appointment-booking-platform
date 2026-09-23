@@ -19,7 +19,8 @@ export async function GET(request: Request) {
 
   const supabase = createClient(url, serviceRoleKey, { auth: { persistSession: false } });
   const now = new Date();
-  const until = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const maximumReminderHours = 72;
+  const until = new Date(now.getTime() + maximumReminderHours * 60 * 60 * 1000);
   const { data: appointments, error } = await supabase
     .from("appointments")
     .select("id, business_id, service_id, customer_name, customer_email, start_at, end_at, status")
@@ -32,13 +33,39 @@ export async function GET(request: Request) {
 
   let sent = 0;
   let skipped = 0;
+  let disabled = 0;
+
   for (const appointment of appointments ?? []) {
+    const { data: settings } = await supabase
+      .from("business_notification_settings")
+      .select("email_reminders, reminder_hours")
+      .eq("business_id", appointment.business_id)
+      .maybeSingle();
+
+    const remindersEnabled = settings?.email_reminders ?? true;
+    const reminderHours = settings?.reminder_hours ?? 24;
+
+    if (!remindersEnabled) {
+      disabled += 1;
+      continue;
+    }
+
+    const reminderDueAt = new Date(new Date(appointment.start_at).getTime() - reminderHours * 60 * 60 * 1000);
+    const reminderWindowStart = new Date(now.getTime() - 60 * 60 * 1000);
+
+    if (reminderDueAt > now || reminderDueAt < reminderWindowStart) {
+      skipped += 1;
+      continue;
+    }
+
+    const notificationType = `${reminderHours}_hour_reminder`;
     const { data: existing } = await supabase
       .from("notification_logs")
       .select("id")
       .eq("appointment_id", appointment.id)
-      .eq("notification_type", "24_hour_reminder")
+      .eq("notification_type", notificationType)
       .maybeSingle();
+
     if (existing) {
       skipped += 1;
       continue;
@@ -50,6 +77,7 @@ export async function GET(request: Request) {
     ]);
 
     if (!business) continue;
+
     const result = await sendAppointmentEmail({
       customerName: appointment.customer_name,
       customerEmail: appointment.customer_email,
@@ -61,10 +89,10 @@ export async function GET(request: Request) {
     });
 
     if (result.sent) {
-      await supabase.from("notification_logs").insert({ appointment_id: appointment.id, notification_type: "24_hour_reminder" });
+      await supabase.from("notification_logs").insert({ appointment_id: appointment.id, notification_type: notificationType });
       sent += 1;
     }
   }
 
-  return NextResponse.json({ success: true, sent, skipped, checked: appointments?.length ?? 0 });
+  return NextResponse.json({ success: true, sent, skipped, disabled, checked: appointments?.length ?? 0 });
 }
