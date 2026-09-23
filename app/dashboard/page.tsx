@@ -1,37 +1,35 @@
-"use client";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import DashboardClient from "./dashboard-client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+export const dynamic = "force-dynamic";
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
+type Business = {
+  id: string;
+  name: string;
+  slug: string;
+  category: string | null;
+  timezone: string;
+  phone: string | null;
+  whatsapp_number: string | null;
+};
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data, error }) => {
-      if (error || !data.user) {
-        router.replace("/login");
-        return;
-      }
-      setEmail(data.user.email ?? "");
-    });
-  }, [router]);
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.replace("/login");
-    router.refresh();
-  }
+  if (!user) redirect("/login");
+
+  const [{ data: profile }, { data: businesses, error: businessesError }] = await Promise.all([
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    supabase.from("businesses").select("id, name, slug, category, timezone, phone, whatsapp_number").order("created_at", { ascending: false }),
+  ]);
 
   return (
-    <main className="auth-shell">
-      <div className="auth-card">
-        <div className="brand"><span className="brand-mark">✳</span> appointly</div>
-        <div className="auth-heading"><h1>Welcome to your workspace</h1><p>You are signed in as {email || "your account"}.</p></div>
-        <p className="auth-success" role="status">Authentication is connected successfully.</p>
-        <button className="button button-dark" type="button" onClick={handleLogout}>Sign out ↗</button>
-      </div>
-    </main>
+    <DashboardClient
+      user={{ id: user.id, email: user.email ?? "", fullName: profile?.full_name ?? user.user_metadata?.full_name ?? "" }}
+      businesses={(businesses ?? []) as Business[]}
+      setupError={businessesError?.code === "42P01" ? "Run the Supabase migration in supabase/migrations before creating your first business." : null}
+    />
   );
 }
