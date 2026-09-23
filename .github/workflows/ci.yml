@@ -54,8 +54,39 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      - name: Sync remote migration history
-        run: supabase db pull --yes
+      - name: Repair legacy remote migration history
+        run: |
+          for version in \
+            20260907100028 \
+            20260907100040 \
+            20260907101507 \
+            20260907104440 \
+            20260907121333 \
+            20260907121808 \
+            20260907182434 \
+            20260907182530 \
+            20260907194209 \
+            20260908101026 \
+            20260908101040 \
+            20260908102913 \
+            20260908104623 \
+            20260923111901 \
+            20260923111940 \
+            20260923112333 \
+            20260923112746 \
+            20260923113445; do
+            supabase migration repair --status reverted "$version"
+          done
+
+          for version in \
+            202609230001 \
+            202609230002 \
+            202609230003 \
+            202609230004 \
+            202609230005 \
+            202609240001; do
+            supabase migration repair --status applied "$version"
+          done
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
