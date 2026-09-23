@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sendAppointmentEmail } from "@/lib/notifications/email";
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const { data: business, error: businessError } = await supabase
       .from("businesses")
-      .select("id")
+      .select("id, name")
       .eq("slug", slug)
       .maybeSingle();
 
@@ -51,6 +52,23 @@ export async function POST(request: Request) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    let serviceName: string | null = null;
+    if (serviceId) {
+      const { data: service } = await supabase.from("services").select("name").eq("id", serviceId).maybeSingle();
+      serviceName = service?.name ?? null;
+    }
+
+    await sendAppointmentEmail({
+      customerName: customerName.trim(),
+      customerEmail: customerEmail?.trim(),
+      businessName: business.name,
+      serviceName,
+      startAt,
+      endAt,
+      status: "confirmed",
+    });
+
     return NextResponse.json({ appointment }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Invalid booking request" }, { status: 400 });
