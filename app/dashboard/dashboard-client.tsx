@@ -34,27 +34,28 @@ export default function DashboardClient({ user, businesses: initialBusinesses, s
     setSaving(true);
     setError("");
 
-    const slug = form.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    const { data, error: insertError } = await supabase.from("businesses").insert({
-      owner_id: user.id,
-      name: form.name.trim(),
-      slug: `${slug}-${Math.random().toString(36).slice(2, 7)}`,
-      category: form.category || null,
-      timezone: form.timezone,
-      phone: form.phone || null,
-      whatsapp_number: form.whatsappNumber || null,
-    }).select("id, name, slug, category, timezone, phone, whatsapp_number").single();
+    try {
+      const response = await fetch("/api/businesses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const result = await response.json();
 
-    if (insertError) {
-      setError(insertError.message);
-    } else if (data) {
-      setBusinesses((current) => [data as Business, ...current]);
+      if (!response.ok) {
+        setError(result.error ?? "Unable to create business");
+        return;
+      }
+
+      setBusinesses((current) => [result.business as Business, ...current]);
       setForm({ name: "", category: "", timezone: "Asia/Kolkata", phone: "", whatsappNumber: "" });
       setShowForm(false);
       router.refresh();
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   }
 
   async function signOut() {
