@@ -59,15 +59,25 @@ export async function POST(request: Request) {
       serviceName = service?.name ?? null;
     }
 
-    await sendAppointmentEmail({
-      customerName: customerName.trim(),
-      customerEmail: customerEmail?.trim(),
-      businessName: business.name,
-      serviceName,
-      startAt,
-      endAt,
-      status: "confirmed",
-    });
+    const { data: notificationSettings } = await supabase
+      .from("business_notification_settings")
+      .select("email_booking_confirmation")
+      .eq("business_id", business.id)
+      .maybeSingle();
+
+    const shouldSendBookingConfirmation = notificationSettings?.email_booking_confirmation ?? true;
+
+    if (shouldSendBookingConfirmation) {
+      await sendAppointmentEmail({
+        customerName: customerName.trim(),
+        customerEmail: customerEmail?.trim(),
+        businessName: business.name,
+        serviceName,
+        startAt,
+        endAt,
+        status: "confirmed",
+      });
+    }
 
     return NextResponse.json({ appointment }, { status: 201 });
   } catch {
