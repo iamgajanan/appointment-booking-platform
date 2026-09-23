@@ -14,17 +14,25 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
   const body = await request.json().catch(() => ({}));
-  const status = String(body.status ?? "");
-  if (!allowedStatuses.has(status)) return NextResponse.json({ error: "Invalid appointment status" }, { status: 400 });
+  const status = body.status === undefined ? undefined : String(body.status);
+  const startAt = body.start_at === undefined ? undefined : String(body.start_at);
+  const endAt = body.end_at === undefined ? undefined : String(body.end_at);
 
-  const { data: appointment, error } = await supabase
-    .from("appointments")
-    .update({ status })
-    .eq("id", appointmentId)
-    .eq("business_id", id)
-    .select("id, customer_name, customer_email, start_at, end_at, service_id, status")
-    .single();
+  if (status !== undefined && !allowedStatuses.has(status)) return NextResponse.json({ error: "Invalid appointment status" }, { status: 400 });
+  if ((startAt && !endAt) || (!startAt && endAt)) return NextResponse.json({ error: "Both start_at and end_at are required" }, { status: 400 });
+  if (startAt && endAt && new Date(startAt).getTime() >= new Date(endAt).getTime()) return NextResponse.json({ error: "End time must be after start time" }, { status: 400 });
 
+  if (startAt && endAt) {
+    const { data: conflict } = await supabase.from("appointments").select("id").eq("business_id", id).neq("id", appointmentId).neq("status", "cancelled").lt("start_at", endAt).gt("end_at", startAt).limit(1).maybeSingle();
+    if (conflict) return NextResponse.json({ error: "This time overlaps another appointment" }, { status: 409 });
+  }
+
+  const updates: Record<string, string> = {};
+  if (status !== undefined) updates.status = status;
+  if (startAt) { updates.start_at = startAt; updates.end_at = endAt as string; }
+  if (!Object.keys(updates).length) return NextResponse.json({ error: "No changes provided" }, { status: 400 });
+
+  const { data: appointment, error } = await supabase.from("appointments").update(updates).eq("id", appointmentId).eq("business_id", id).select("id, customer_name, customer_email, start_at, end_at, service_id, status").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   let serviceName: string | null = null;
@@ -33,24 +41,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     serviceName = service?.name ?? null;
   }
 
-  const { data: notificationSettings } = await supabase
-    .from("business_notification_settings")
-    .select("email_status_updates")
-    .eq("business_id", id)
-    .maybeSingle();
-
-  const shouldSendStatusUpdate = notificationSettings?.email_status_updates ?? true;
-
-  if (shouldSendStatusUpdate) {
-    await sendAppointmentEmail({
-      customerName: appointment.customer_name,
-      customerEmail: appointment.customer_email,
-      businessName: business.name,
-      serviceName,
-      startAt: appointment.start_at,
-      endAt: appointment.end_at,
-      status,
-    });
+  if (status !== undefined || startAt) {
+    const { data: notificationSettings } = await supabase.from("business_notification_settings").select("email_status_updates").eq("business_id", id).maybeSingle();
+    if (notificationSettings?.email_status_updates ?? true) {
+      await sendAppointmentEmail({ customerName: appointment.customer_name, customerEmail: appointment.customer_email, businessName: business.name, serviceName, startAt: appointment.start_at, endAt: appointment.end_at, status: appointment.status });
+    }
   }
 
   return NextResponse.json({ appointment });
