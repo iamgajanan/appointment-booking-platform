@@ -1,69 +1,31 @@
-import Image from "next/image";
+import Link from "next/link";
+
+const solutions = [
+  ["🏥", "Clinics", "Book and reschedule appointments without phone queues."],
+  ["💇", "Salons", "Manage haircut, facial, and treatment bookings."],
+  ["🦷", "Dentists", "Make consultations and follow-ups easier to schedule."],
+  ["🧑‍⚕️", "Doctors", "Give patients a simple way to request consultations."],
+  ["🏋️", "Gyms", "Schedule trainer sessions and recurring visits."],
+  ["🚗", "Service centers", "Organize vehicle service appointments and reminders."],
+  ["🎓", "Coaching", "Book counselling sessions and discovery calls."],
+  ["🏢", "Consultants", "Let clients book time around your availability."],
+];
+
+const plans = [
+  { name: "Starter", price: "₹0", note: "For trying the workflow", features: ["1 business", "Basic booking flow", "Manual configuration"] },
+  { name: "Growth", price: "₹999", note: "For growing teams", featured: true, features: ["Multiple businesses", "WhatsApp-ready workflows", "Flexible working hours", "Calendar integrations"] },
+  { name: "Scale", price: "Custom", note: "For platforms and agencies", features: ["Advanced access controls", "Developer APIs", "Priority support", "Custom onboarding"] },
+];
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+  return <main className="site-shell">
+    <nav className="nav container"><Link href="/" className="brand"><span className="brand-mark">✳</span> appointly</Link><div className="nav-links"><a href="#solutions">Solutions</a><a href="#pricing">Pricing</a><a href="#about">About us</a><a href="#developers">Developers</a></div><div className="nav-actions"><Link href="/login" className="text-link">Log in</Link><Link href="/signup" className="button button-dark">Get started <span>↗</span></Link></div></nav>
+    <section className="hero container"><div className="eyebrow"><span className="status-dot"/> Smart scheduling for every business</div><h1>Appointments that run<br/><span className="gradient-text">themselves.</span></h1><p className="hero-copy">A modern booking platform for clinics, salons, consultants, and every service business. Connect your calendar, define your hours, and let customers book effortlessly.</p><div className="hero-actions"><Link href="/signup" className="button button-dark button-large">Start for free <span>↗</span></Link><a href="#how-it-works" className="button button-light button-large">See how it works <span>↓</span></a></div><div className="hero-proof"><div className="avatars"><span>G</span><span>A</span><span>S</span><span>+</span></div><span>Built for simple, human scheduling</span></div></section>
+    <section id="how-it-works" className="product-preview container"><div className="preview-window"><div className="preview-top"><span className="window-dots">● ● ●</span><span>appointly / overview</span><span>Live preview</span></div><div className="preview-body"><aside><div className="mini-brand">✳ appointly</div><div className="side-active">▦ Overview</div><div>◷ Calendar</div><div>⌘ Businesses</div><div>⚙ Settings</div></aside><div className="preview-main"><div className="preview-heading"><div><small>WEDNESDAY, SEPTEMBER 23</small><h3>Good morning, Gajanan</h3></div><span className="mini-pill">● All systems operational</span></div><div className="metric-grid"><div><small>Appointments</small><strong>128</strong><em>+18.2%</em></div><div><small>Businesses</small><strong>24</strong><em>+6.4%</em></div><div><small>Booked hours</small><strong>86%</strong><em>+9.1%</em></div></div><div className="preview-chart"><div className="chart-title">Booking activity <span>Last 7 days</span></div><div className="bars">{[42,68,52,88,62,94,76,100,72,86,64,92].map((height, i) => <i key={i} style={{height: `${height}%`}} />)}</div></div></div></div></div></section>
+    <section id="solutions" className="section container"><div className="section-heading"><div><div className="eyebrow">One platform. Every service.</div><h2>Made for the way<br/>your business works.</h2></div><p>From a solo consultant to a multi-location clinic, adapt your booking experience to your business rules.</p></div><div className="solution-grid">{solutions.map(([icon, title, text]) => <div className="solution-card" key={title}><span className="solution-icon">{icon}</span><h3>{title}</h3><p>{text}</p><span className="card-arrow">↗</span></div>)}</div></section>
+    <section id="about" className="section split-section"><div className="container split-grid"><div><div className="eyebrow">Designed around your time</div><h2>Flexible hours.<br/>Fewer missed bookings.</h2></div><div><p>Set different working periods for each day, including lunch breaks, tea breaks, split shifts, holidays, and special availability. Your booking assistant follows your rules automatically.</p><div className="feature-list"><span>✓ Multiple time windows per day</span><span>✓ Calendar-aware availability</span><span>✓ WhatsApp and webhook ready</span></div></div></div></section>
+    <section id="pricing" className="section container"><div className="center-heading"><div className="eyebrow">Simple, transparent pricing</div><h2>Start small. Grow confidently.</h2><p>Choose a plan that matches your stage. Upgrade as your booking needs grow.</p></div><div className="pricing-grid">{plans.map(plan => <div className={`price-card ${plan.featured ? "featured" : ""}`} key={plan.name}>{plan.featured && <span className="popular">Most flexible</span>}<h3>{plan.name}</h3><p>{plan.note}</p><div className="price">{plan.price}{plan.price !== "Custom" && <small>/month</small>}</div><Link href="/signup" className={`button ${plan.featured ? "button-dark" : "button-light"}`}>Choose plan ↗</Link><div className="price-features">{plan.features.map(feature => <span key={feature}>✓ {feature}</span>)}</div></div>)}</div></section>
+    <section id="developers" className="developer-banner container"><div><div className="eyebrow">For developers</div><h2>Build your own booking experience.</h2><p>Connect your product with webhooks, APIs, and business-specific booking rules.</p></div><Link href="/login" className="button button-light">Developer access ↗</Link></section>
+    <footer className="footer container"><Link href="/" className="brand"><span className="brand-mark">✳</span> appointly</Link><span>© 2026 Appointly. Built for better bookings.</span><div><Link href="/login">Login</Link><a href="#pricing">Pricing</a><a href="#about">About</a></div></footer>
+  </main>;
 }
