@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import DashboardClient from "./dashboard-client";
 
 export const dynamic = "force-dynamic";
-
+// This is a for dummy commit to check the ci operation for migration
 type Business = {
   id: string;
   name: string;
