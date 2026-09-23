@@ -33,6 +33,8 @@ export default function AppointmentsClient({ business, initialAppointments }: Pr
   const [newEnd, setNewEnd] = useState("");
 
   const visibleAppointments = useMemo(() => {
+    // This timestamp is intentionally evaluated when filtering so the upcoming view stays current.
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const term = search.trim().toLowerCase();
     return appointments.filter((appointment) => {
