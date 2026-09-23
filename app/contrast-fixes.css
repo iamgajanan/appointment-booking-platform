@@ -1,0 +1,3 @@
+/* Explicit contrast overrides for links affected by the global anchor reset. */
+a.text-white { color: #ffffff !important; }
+a.bg-white { color: #17221d !important; }
