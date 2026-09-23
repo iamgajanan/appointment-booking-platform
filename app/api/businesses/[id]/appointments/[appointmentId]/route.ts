@@ -33,15 +33,25 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     serviceName = service?.name ?? null;
   }
 
-  await sendAppointmentEmail({
-    customerName: appointment.customer_name,
-    customerEmail: appointment.customer_email,
-    businessName: business.name,
-    serviceName,
-    startAt: appointment.start_at,
-    endAt: appointment.end_at,
-    status,
-  });
+  const { data: notificationSettings } = await supabase
+    .from("business_notification_settings")
+    .select("email_status_updates")
+    .eq("business_id", id)
+    .maybeSingle();
+
+  const shouldSendStatusUpdate = notificationSettings?.email_status_updates ?? true;
+
+  if (shouldSendStatusUpdate) {
+    await sendAppointmentEmail({
+      customerName: appointment.customer_name,
+      customerEmail: appointment.customer_email,
+      businessName: business.name,
+      serviceName,
+      startAt: appointment.start_at,
+      endAt: appointment.end_at,
+      status,
+    });
+  }
 
   return NextResponse.json({ appointment });
 }
