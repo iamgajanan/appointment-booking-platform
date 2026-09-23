@@ -34,8 +34,9 @@ export default function BookingAvailabilityClient({ business, services }: Props)
     event.preventDefault();
     if (!selectedSlot) return;
     setSaving(true); setError(""); setSuccess("");
+    const bookedSlot = selectedSlot;
     const duration = services.find((service) => service.id === serviceId)?.duration_minutes ?? 30;
-    const start = new Date(selectedSlot.value);
+    const start = new Date(bookedSlot.value);
     const end = new Date(start.getTime() + duration * 60000);
     try {
       const response = await fetch("/api/public/appointments", {
@@ -45,6 +46,7 @@ export default function BookingAvailabilityClient({ business, services }: Props)
       });
       const result = await response.json();
       if (!response.ok) { setError(result.error ?? "Unable to book appointment"); return; }
+      setSlots((currentSlots) => currentSlots.filter((slot) => slot.value !== bookedSlot.value));
       setSuccess("Appointment booked successfully!");
       setSelectedSlot(null);
       setForm({ customerName: "", customerPhone: "", customerEmail: "" });
