@@ -12,9 +12,9 @@ declare
   service_record record;
   local_start timestamp;
   local_end timestamp;
-  day_of_week integer;
-  hours_record record;
+  local_day_of_week integer;
   requested_duration integer;
+  within_business_hours boolean;
 begin
   if new.end_at <= new.start_at then
     raise exception 'Appointment end time must be after start time';
@@ -24,10 +24,10 @@ begin
     raise exception 'Appointments must be scheduled in the future';
   end if;
 
-  select id, timezone, is_active
+  select b.id, b.timezone, b.is_active
     into business_record
-  from public.businesses
-  where id = new.business_id;
+  from public.businesses b
+  where b.id = new.business_id;
 
   if not found then
     raise exception 'Business not found';
@@ -37,10 +37,10 @@ begin
     raise exception 'Business is not accepting appointments';
   end if;
 
-  select appointment_duration_minutes, advance_booking_days
+  select s.appointment_duration_minutes, s.advance_booking_days
     into settings_record
-  from public.business_booking_settings
-  where business_id = new.business_id;
+  from public.business_booking_settings s
+  where s.business_id = new.business_id;
 
   if settings_record is null then
     raise exception 'Booking settings are not configured';
@@ -51,11 +51,11 @@ begin
   end if;
 
   if new.service_id is not null then
-    select id, duration_minutes, is_active
+    select s.id, s.duration_minutes, s.is_active
       into service_record
-    from public.services
-    where id = new.service_id
-      and business_id = new.business_id;
+    from public.services s
+    where s.id = new.service_id
+      and s.business_id = new.business_id;
 
     if not found or service_record.is_active = false then
       raise exception 'Selected service is not available for this business';
@@ -77,19 +77,18 @@ begin
     raise exception 'Appointments cannot cross local calendar days';
   end if;
 
-  day_of_week := extract(dow from local_start)::integer;
+  local_day_of_week := extract(dow from local_start)::integer;
 
-  select start_time, end_time
-    into hours_record
-  from public.business_hours
-  where business_id = new.business_id
-    and day_of_week = day_of_week
-  order by start_time
-  limit 1;
+  select exists (
+    select 1
+    from public.business_hours h
+    where h.business_id = new.business_id
+      and h.day_of_week = local_day_of_week
+      and local_start::time >= h.start_time
+      and local_end::time <= h.end_time
+  ) into within_business_hours;
 
-  if not found
-     or local_start::time < hours_record.start_time
-     or local_end::time > hours_record.end_time then
+  if not within_business_hours then
     raise exception 'Appointment is outside business hours';
   end if;
 
@@ -114,9 +113,3 @@ alter table public.appointments
     business_id with =,
     tstzrange(start_at, end_at, '[)') with &&
   ) where (status <> 'cancelled');
-
-create index if not exists appointments_business_time_range_idx
-  on public.appointments using gist (
-    business_id,
-    tstzrange(start_at, end_at, '[)')
-  );
