@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendAppointmentEmail } from "@/lib/notifications/email";
 
 const MAX_NAME_LENGTH = 120;
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The appointment must be scheduled in the future" }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data: business, error: businessError } = await supabase
       .from("businesses")
       .select("id, name")
