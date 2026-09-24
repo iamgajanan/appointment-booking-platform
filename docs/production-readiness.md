@@ -1,8 +1,34 @@
 # Production Readiness Runbook
 
-## Environment variables
+## Current evaluation scope
 
-Configure production values in the hosting provider's encrypted environment settings, never in source control. Required application values include `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and the server-side Supabase migration credentials used only by CI. Email delivery requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. Public browser variables may use the `NEXT_PUBLIC_` prefix; service credentials must remain server-side or in CI secrets.
+The project is currently being evaluated locally and through CI. Production hosting, production environment variables, live cron scheduling, and live deployment verification are intentionally postponed until the release stage.
+
+The following have been reported as completed and should be retained as release evidence:
+
+- Core booking and appointment management flows
+- Mobile UI review
+- Accessibility review
+- Cross-business authorization tests
+- Unauthenticated API tests
+- Invalid/manipulated ID tests
+- Supabase RLS verification
+- Final cron authentication test
+- Notification delivery and duplicate-prevention tests
+- CI build, lint, regression, accessibility, production-readiness, and migration checks
+
+## Environment variables — release stage
+
+Configure production values in the hosting provider's encrypted environment settings, never in source control. Required values should be verified only when preparing production:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` where server-side operations require it
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `CRON_SECRET`
+
+Public browser variables may use the `NEXT_PUBLIC_` prefix. Service credentials, Resend credentials, database credentials, and cron secrets must remain server-side or in CI secrets.
 
 ## API and logging
 
@@ -10,16 +36,42 @@ Return structured JSON errors without exposing tokens, passwords, provider respo
 
 ## Cron
 
-Configure the appointment-reminder cron request in the hosting provider with the production cron secret. The endpoint must reject missing or invalid authorization and should be scheduled only once per intended interval. Confirm the cron job's timezone, timeout, retry behavior, and duplicate-prevention behavior before enabling it.
+The appointment-reminder endpoint must reject missing or invalid authorization. Configure the production scheduler only during the release stage, and confirm its timezone, timeout, retry behavior, interval, and duplicate-prevention behavior before enabling it.
 
 ## Migration
 
-Every production schema change must be committed as a timestamped Supabase migration. CI runs the build first, repairs known legacy migration history, and then runs `supabase db push`. Review migration output before considering a release successful.
+Every schema change must be committed as a timestamped Supabase migration. CI runs the build, repairs known legacy migration history when configured, and runs `supabase db push`. Review migration output before considering a schema release successful.
 
-## Rollback
+## Backup, rollback, and recovery
 
-Keep the previous successful deployment available in the hosting provider. For an application-only regression, roll back to the previous deployment and preserve the database state. For schema changes, use a reviewed forward-fix migration unless a tested, compatible rollback migration exists; do not manually delete production migration history.
+Use the companion runbook: [`backup-rollback-recovery.md`](./backup-rollback-recovery.md).
 
-## Release verification
+Before a risky production change:
 
-Before release, confirm lint, Phase 9 checks, Phase 10 checks, Phase 11 checks, and the Next.js production build pass. Then verify Supabase migration execution, authenticated dashboard access, public booking, email delivery, and cron authorization in the production environment.
+- [ ] Confirm CI and migration checks are green.
+- [ ] Record the deployed commit SHA.
+- [ ] Confirm a previous successful deployment is available.
+- [ ] Confirm an available database backup or recovery point.
+- [ ] Review the migration and forward-fix/rollback strategy.
+
+For application-only regressions, roll back to the previous deployment while preserving database state. For database problems, prefer a reviewed forward-fix migration. Do not manually delete production migration history.
+
+## Release verification checklist
+
+Complete these only when preparing the production release:
+
+- [ ] Verify production environment variables in the hosting provider.
+- [ ] Verify the production Supabase project and applied migrations.
+- [ ] Verify the Resend sender identity and delivery.
+- [ ] Verify cron scheduling and secret configuration.
+- [ ] Verify production authentication and redirect URLs.
+- [ ] Verify public booking and availability using the production URL.
+- [ ] Verify dashboard and API behavior in the deployed environment.
+- [ ] Review deployment and runtime logs.
+- [ ] Confirm backup and rollback procedures are available.
+- [ ] Confirm the final CI and Phase 11 workflow runs are successful.
+
+## Related documentation
+
+- [`release-readiness.md`](./release-readiness.md)
+- [`backup-rollback-recovery.md`](./backup-rollback-recovery.md)
