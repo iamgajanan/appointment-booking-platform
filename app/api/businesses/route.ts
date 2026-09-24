@@ -50,5 +50,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  const { error: bookingSettingsError } = await supabase
+    .from("business_booking_settings")
+    .insert({ business_id: data.id });
+
+  if (bookingSettingsError) {
+    console.error("Initialize booking settings error:", bookingSettingsError);
+    return NextResponse.json(
+      { error: "Business created, but booking settings could not be initialized" },
+      { status: 500 },
+    );
+  }
+
   return NextResponse.json({ business: data }, { status: 201 });
 }
