@@ -11,9 +11,7 @@ export async function GET(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { data: business } = await supabase
     .from("businesses")
@@ -22,27 +20,23 @@ export async function GET(
     .eq("owner_id", user.id)
     .maybeSingle();
 
-  if (!business) {
-    return NextResponse.json({ error: "Business not found" }, { status: 404 });
-  }
+  if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
   const searchParams = new URL(request.url).searchParams;
-  const email = searchParams.get("email")?.trim();
+  const email = searchParams.get("email")?.trim().toLowerCase();
   const phone = searchParams.get("phone")?.trim();
   const name = searchParams.get("name")?.trim();
 
   if (!email && !phone && !name) {
-    return NextResponse.json(
-      { error: "Provide email, phone, or name to load customer history" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Provide email, phone, or name to load customer history" }, { status: 400 });
+  }
+  if ([email, phone, name].some((value) => value && value.length > 254)) {
+    return NextResponse.json({ error: "Customer search value is too long" }, { status: 400 });
   }
 
   let query = supabase
     .from("appointments")
-    .select(
-      "id, customer_name, customer_phone, customer_email, start_at, end_at, status, service_id, created_at",
-    )
+    .select("id, customer_name, customer_phone, customer_email, start_at, end_at, status, service_id, created_at")
     .eq("business_id", id)
     .order("start_at", { ascending: false })
     .limit(100);
@@ -52,9 +46,7 @@ export async function GET(
   if (name) query = query.ilike("customer_name", name);
 
   const { data: appointments, error } = await query;
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
+  if (error) return NextResponse.json({ error: "Unable to load customer history" }, { status: 500 });
 
   return NextResponse.json({ appointments: appointments ?? [] });
 }
