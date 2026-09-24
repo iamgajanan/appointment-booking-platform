@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:phase9": "node scripts/phase9-regression.mjs",
-    "test:phase10": "node scripts/phase10-accessibility.mjs"
+    "test:phase10": "node scripts/phase10-accessibility.mjs",
+    "test:phase11": "node scripts/phase11-production-readiness.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
