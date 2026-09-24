@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: 20
 
@@ -24,6 +28,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -74,7 +79,8 @@ jobs:
             20260923111940 \
             20260923112333 \
             20260923112746 \
-            20260923113445; do
+            20260923113445 \
+            20260924035749; do
             supabase migration repair --status reverted "$version"
           done
 
@@ -84,7 +90,8 @@ jobs:
             202609230003 \
             202609230004 \
             202609230005 \
-            202609240001; do
+            202609240001 \
+            202609240002; do
             supabase migration repair --status applied "$version"
           done
         env:
