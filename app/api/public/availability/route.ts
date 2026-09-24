@@ -31,6 +31,23 @@ function formatTime(totalMinutes: number) {
   return `${displayHour}:${String(minutes).padStart(2, "0")} ${suffix}`;
 }
 
+function getLocalDateAndMinutes(timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    date: `${values.year}-${values.month}-${values.day}`,
+    minutes: Number(values.hour) * 60 + Number(values.minute),
+  };
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const slug = url.searchParams.get("slug");
@@ -85,17 +102,26 @@ export async function GET(request: Request) {
   const duration = service?.duration_minutes ?? settings?.appointment_duration_minutes ?? 30;
   const interval = settings?.slot_interval_minutes ?? 30;
   const buffer = settings?.buffer_minutes ?? 0;
+  const current = getLocalDateAndMinutes(business.timezone || "UTC");
+  const isPastDate = date < current.date;
+  const isToday = date === current.date;
   const booked = (appointments ?? []).map((item) => ({
     start: new Date(item.start_at).getTime(),
     end: new Date(item.end_at).getTime(),
   }));
   const slots: { value: string; label: string }[] = [];
 
+  if (isPastDate) {
+    return NextResponse.json({ business, date, slots });
+  }
+
   for (const period of dayHours) {
     const start = toMinutes(String(period.start_time).slice(0, 5));
     const end = toMinutes(String(period.end_time).slice(0, 5));
 
     for (let cursor = start; cursor + duration <= end; cursor += interval) {
+      if (isToday && cursor <= current.minutes) continue;
+
       const startIso = new Date(
         `${date}T${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}:00`,
       ).getTime();
