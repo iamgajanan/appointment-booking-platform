@@ -1,10 +1,20 @@
--- Prevent duplicate reminder delivery claims, including concurrent cron runs.
+-- Ensure notification claim storage exists even if legacy migration history was repaired.
+create table if not exists public.notification_logs (
+  id uuid primary key default gen_random_uuid(),
+  appointment_id uuid not null references public.appointments(id) on delete cascade,
+  notification_type text not null,
+  sent_at timestamptz not null default now()
+);
+
+alter table public.notification_logs enable row level security;
+
+-- Remove duplicate legacy claims before enforcing uniqueness.
 with ranked_logs as (
   select
     ctid,
     row_number() over (
       partition by appointment_id, notification_type
-      order by created_at asc nulls last, id asc
+      order by sent_at asc nulls last, id asc
     ) as row_number
   from public.notification_logs
 )
