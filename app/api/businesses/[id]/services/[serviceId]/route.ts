@@ -7,13 +7,9 @@ export async function DELETE(
 ) {
   const { id, serviceId } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { data: business } = await supabase
     .from("businesses")
@@ -22,9 +18,7 @@ export async function DELETE(
     .eq("owner_id", user.id)
     .maybeSingle();
 
-  if (!business) {
-    return NextResponse.json({ error: "Business not found" }, { status: 404 });
-  }
+  if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
   const { data: service } = await supabase
     .from("services")
@@ -33,9 +27,7 @@ export async function DELETE(
     .eq("business_id", id)
     .maybeSingle();
 
-  if (!service) {
-    return NextResponse.json({ error: "Service not found" }, { status: 404 });
-  }
+  if (!service) return NextResponse.json({ error: "Service not found" }, { status: 404 });
 
   const { error } = await supabase
     .from("services")
@@ -43,9 +35,7 @@ export async function DELETE(
     .eq("id", serviceId)
     .eq("business_id", id);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
+  if (error) return NextResponse.json({ error: "Unable to delete service" }, { status: 500 });
 
   return NextResponse.json({ success: true });
 }
