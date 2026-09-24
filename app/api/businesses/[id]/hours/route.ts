@@ -3,6 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 
 type HourInput = { dayOfWeek: number; startTime: string; endTime: string };
 
+const isValidHour = (hour: HourInput) =>
+  Number.isInteger(hour.dayOfWeek) &&
+  hour.dayOfWeek >= 0 &&
+  hour.dayOfWeek <= 6 &&
+  /^([01]\d|2[0-3]):[0-5]\d$/.test(hour.startTime) &&
+  /^([01]\d|2[0-3]):[0-5]\d$/.test(hour.endTime) &&
+  hour.startTime < hour.endTime;
+
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const supabase = await createClient();
@@ -20,19 +28,21 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
   const body = await request.json();
-  const hours = (Array.isArray(body.hours) ? body.hours : []) as HourInput[];
-  const validHours = hours.filter(
-    (hour) => Number.isInteger(hour.dayOfWeek) && hour.dayOfWeek >= 0 && hour.dayOfWeek <= 6 &&
-      /^([01]\d|2[0-3]):[0-5]\d$/.test(hour.startTime) &&
-      /^([01]\d|2[0-3]):[0-5]\d$/.test(hour.endTime) && hour.startTime < hour.endTime,
-  );
+  if (!Array.isArray(body.hours)) {
+    return NextResponse.json({ error: "hours must be an array" }, { status: 400 });
+  }
+
+  const hours = body.hours as HourInput[];
+  if (!hours.every(isValidHour)) {
+    return NextResponse.json({ error: "Each hour must contain a valid day and time range" }, { status: 400 });
+  }
 
   const { error: deleteError } = await supabase.from("business_hours").delete().eq("business_id", id);
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 400 });
 
-  if (validHours.length > 0) {
+  if (hours.length > 0) {
     const { error: insertError } = await supabase.from("business_hours").insert(
-      validHours.map((hour) => ({ business_id: id, day_of_week: hour.dayOfWeek, start_time: hour.startTime, end_time: hour.endTime })),
+      hours.map((hour) => ({ business_id: id, day_of_week: hour.dayOfWeek, start_time: hour.startTime, end_time: hour.endTime })),
     );
     if (insertError) return NextResponse.json({ error: insertError.message }, { status: 400 });
   }
