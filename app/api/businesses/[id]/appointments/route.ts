@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+const ALLOWED_STATUSES = new Set(["pending", "confirmed", "cancelled", "completed"]);
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -34,7 +37,22 @@ export async function GET(
   const status = searchParams.get("status")?.trim();
   const from = searchParams.get("from")?.trim();
   const to = searchParams.get("to")?.trim();
-  const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? 50) || 50, 1), 100);
+  const parsedLimit = Number(searchParams.get("limit") ?? 50);
+  const limit = Math.min(Math.max(Number.isFinite(parsedLimit) ? Math.trunc(parsedLimit) : 50, 1), 100);
+
+  if (status && !ALLOWED_STATUSES.has(status)) {
+    return NextResponse.json({ error: "Invalid appointment status" }, { status: 400 });
+  }
+
+  for (const dateValue of [from, to]) {
+    if (dateValue && (!ISO_DATE_PATTERN.test(dateValue) || Number.isNaN(Date.parse(dateValue)))) {
+      return NextResponse.json({ error: "Invalid date filter" }, { status: 400 });
+    }
+  }
+
+  if (from && to && new Date(from).getTime() > new Date(to).getTime()) {
+    return NextResponse.json({ error: "The from date must be before the to date" }, { status: 400 });
+  }
 
   let query = supabase
     .from("appointments")
@@ -53,7 +71,7 @@ export async function GET(
 
   const { data: appointments, error } = await query;
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ error: "Unable to load appointments" }, { status: 500 });
   }
 
   return NextResponse.json({ appointments: appointments ?? [] });
