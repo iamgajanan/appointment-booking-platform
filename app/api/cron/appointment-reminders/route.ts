@@ -59,14 +59,13 @@ export async function GET(request: Request) {
     }
 
     const notificationType = `${reminderHours}_hour_reminder`;
-    const { data: existing } = await supabase
+    const { data: claim, error: claimError } = await supabase
       .from("notification_logs")
+      .insert({ appointment_id: appointment.id, notification_type: notificationType })
       .select("id")
-      .eq("appointment_id", appointment.id)
-      .eq("notification_type", notificationType)
       .maybeSingle();
 
-    if (existing) {
+    if (claimError || !claim) {
       skipped += 1;
       continue;
     }
@@ -76,7 +75,11 @@ export async function GET(request: Request) {
       supabase.from("services").select("name").eq("id", appointment.service_id).maybeSingle(),
     ]);
 
-    if (!business) continue;
+    if (!business) {
+      await supabase.from("notification_logs").delete().eq("id", claim.id);
+      skipped += 1;
+      continue;
+    }
 
     const result = await sendAppointmentEmail({
       customerName: appointment.customer_name,
@@ -89,8 +92,10 @@ export async function GET(request: Request) {
     });
 
     if (result.sent) {
-      await supabase.from("notification_logs").insert({ appointment_id: appointment.id, notification_type: notificationType });
       sent += 1;
+    } else {
+      await supabase.from("notification_logs").delete().eq("id", claim.id);
+      skipped += 1;
     }
   }
 
