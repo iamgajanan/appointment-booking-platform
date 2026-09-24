@@ -15,7 +15,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
   const values = {
     business_id: id,
     appointment_duration_minutes: Number(body.appointmentDurationMinutes),
@@ -31,6 +37,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!Number.isInteger(values.advance_booking_days) || values.advance_booking_days < 1 || values.advance_booking_days > 365) return NextResponse.json({ error: "Advance booking days must be between 1 and 365." }, { status: 400 });
 
   const { data, error } = await supabase.from("business_booking_settings").upsert(values, { onConflict: "business_id" }).select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) return NextResponse.json({ error: "Unable to save booking settings" }, { status: 500 });
   return NextResponse.json({ settings: data });
 }
