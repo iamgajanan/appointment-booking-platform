@@ -1,0 +1,35 @@
+name: Phase 11 Production Readiness
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  production-readiness:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://qpzwxbtteikwktljvhhl.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'ci-build-placeholder-anon-key' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Lint
+        run: npm run lint --if-present
+      - name: Phase 9 regression checks
+        run: npm run test:phase9
+      - name: Phase 10 responsive and accessibility checks
+        run: npm run test:phase10
+      - name: Phase 11 production readiness checks
+        run: npm run test:phase11
+      - name: Build
+        run: npm run build
