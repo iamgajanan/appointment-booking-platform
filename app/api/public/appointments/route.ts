@@ -14,26 +14,23 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function isValidPhone(value: string): boolean {
+  return /^[+()\-\s\d.]+$/.test(value);
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const {
-      slug,
-      serviceId,
-      customerName,
-      customerPhone,
-      customerEmail,
-      startAt,
-      endAt,
-    } = body ?? {};
+    const { slug, serviceId, customerName, customerPhone, customerEmail, startAt, endAt } = body ?? {};
 
     const normalizedName = typeof customerName === "string" ? customerName.trim() : "";
     const normalizedPhone = typeof customerPhone === "string" ? customerPhone.trim() : "";
     const normalizedEmail = typeof customerEmail === "string" ? customerEmail.trim().toLowerCase() : "";
+    const normalizedSlug = typeof slug === "string" ? slug.trim() : "";
+    const normalizedServiceId = typeof serviceId === "string" ? serviceId.trim() : "";
 
     if (
-      typeof slug !== "string" ||
-      !slug.trim() ||
+      !normalizedSlug ||
       !normalizedName ||
       normalizedName.length > MAX_NAME_LENGTH ||
       !isValidDate(startAt) ||
@@ -42,7 +39,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid booking details" }, { status: 400 });
     }
 
-    if (normalizedPhone.length > MAX_PHONE_LENGTH) {
+    if (
+      normalizedPhone.length > MAX_PHONE_LENGTH ||
+      (normalizedPhone.length > 0 && !isValidPhone(normalizedPhone))
+    ) {
       return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
     }
 
@@ -52,19 +52,35 @@ export async function POST(request: Request) {
 
     const start = new Date(startAt);
     const end = new Date(endAt);
-    if (end <= start) {
-      return NextResponse.json({ error: "End time must be after start time" }, { status: 400 });
+    if (end <= start || start.getTime() <= Date.now()) {
+      return NextResponse.json({ error: "The appointment must be scheduled in the future" }, { status: 400 });
     }
 
     const supabase = await createClient();
     const { data: business, error: businessError } = await supabase
       .from("businesses")
       .select("id, name")
-      .eq("slug", slug.trim())
+      .eq("slug", normalizedSlug)
       .maybeSingle();
 
     if (businessError || !business) {
       return NextResponse.json({ error: "Business not found" }, { status: 404 });
+    }
+
+    let serviceName: string | null = null;
+    if (normalizedServiceId) {
+      const { data: service, error: serviceError } = await supabase
+        .from("services")
+        .select("id, name")
+        .eq("id", normalizedServiceId)
+        .eq("business_id", business.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (serviceError || !service) {
+        return NextResponse.json({ error: "Selected service is not available" }, { status: 400 });
+      }
+      serviceName = service.name;
     }
 
     const { data: conflict, error: conflictError } = await supabase
@@ -89,7 +105,7 @@ export async function POST(request: Request) {
       .from("appointments")
       .insert({
         business_id: business.id,
-        service_id: typeof serviceId === "string" && serviceId ? serviceId : null,
+        service_id: normalizedServiceId || null,
         customer_name: normalizedName,
         customer_phone: normalizedPhone || null,
         customer_email: normalizedEmail || null,
@@ -104,23 +120,10 @@ export async function POST(request: Request) {
       if (error.code === "23P01" || /overlap|outside business hours|duration|future|booking window/i.test(error.message)) {
         return NextResponse.json({ error: "This appointment is not available for the selected time" }, { status: 409 });
       }
-
       if (/service is not available|business is not accepting/i.test(error.message)) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json({ error: "This appointment is not available for the selected service or business" }, { status: 400 });
       }
-
       return NextResponse.json({ error: "Unable to create appointment" }, { status: 400 });
-    }
-
-    let serviceName: string | null = null;
-    if (typeof serviceId === "string" && serviceId) {
-      const { data: service } = await supabase
-        .from("services")
-        .select("name")
-        .eq("id", serviceId)
-        .eq("business_id", business.id)
-        .maybeSingle();
-      serviceName = service?.name ?? null;
     }
 
     const { data: notificationSettings } = await supabase
