@@ -1,5 +1,24 @@
 create extension if not exists btree_gist;
 
+alter table public.businesses
+  add column if not exists is_active boolean not null default true;
+
+create table if not exists public.business_hours (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  day_of_week smallint not null check (day_of_week between 0 and 6),
+  start_time time not null,
+  end_time time not null,
+  created_at timestamptz not null default now(),
+  check (end_time > start_time)
+);
+
+create index if not exists business_hours_business_day_idx
+  on public.business_hours(business_id, day_of_week);
+
+create index if not exists appointments_service_id_idx
+  on public.appointments(service_id);
+
 create or replace function public.validate_appointment_booking()
 returns trigger
 language plpgsql
@@ -33,7 +52,7 @@ begin
     raise exception 'Business not found';
   end if;
 
-  if coalesce(business_record.is_active, true) = false then
+  if business_record.is_active = false then
     raise exception 'Business is not accepting appointments';
   end if;
 
@@ -42,7 +61,7 @@ begin
   from public.business_booking_settings s
   where s.business_id = new.business_id;
 
-  if settings_record is null then
+  if not found then
     raise exception 'Booking settings are not configured';
   end if;
 
