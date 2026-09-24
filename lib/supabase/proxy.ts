@@ -26,6 +26,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
   const isCronRoute = pathname === "/api/cron/appointment-reminders";
+  const isPublicApiRoute = pathname.startsWith("/api/public/");
   const isPublicRoute =
     pathname === "/" ||
     pathname.startsWith("/login") ||
@@ -34,7 +35,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/reset-password") ||
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/api/auth/") ||
-    isCronRoute;
+    isCronRoute ||
+    isPublicApiRoute;
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
