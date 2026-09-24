@@ -131,4 +131,4 @@ alter table public.appointments
   exclude using gist (
     business_id with =,
     tstzrange(start_at, end_at, '[)') with &&
-  ) where (status <> 'cancelled');
+  ) where (status <> 'cancelled' and end_at > start_at);
