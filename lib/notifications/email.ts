@@ -8,6 +8,15 @@ type AppointmentEmailInput = {
   status: string;
 };
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
     dateStyle: "full",
@@ -24,33 +33,42 @@ export async function sendAppointmentEmail(input: AppointmentEmailInput) {
     return { sent: false, skipped: true };
   }
 
-  const statusLabel = input.status.charAt(0).toUpperCase() + input.status.slice(1);
-  const subject = `${input.businessName}: Appointment ${statusLabel}`;
+  const customerName = escapeHtml(input.customerName);
+  const businessName = escapeHtml(input.businessName);
+  const serviceName = escapeHtml(input.serviceName || "Appointment");
+  const statusLabel = escapeHtml(input.status.charAt(0).toUpperCase() + input.status.slice(1));
+  const subject = `${input.businessName}: Appointment ${input.status.charAt(0).toUpperCase() + input.status.slice(1)}`;
   const html = `
     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#17211b">
-      <h2>${subject}</h2>
-      <p>Hi ${input.customerName},</p>
-      <p>Your appointment with <strong>${input.businessName}</strong> is <strong>${statusLabel.toLowerCase()}</strong>.</p>
-      <p><strong>Service:</strong> ${input.serviceName || "Appointment"}<br/>
+      <h2>${escapeHtml(subject)}</h2>
+      <p>Hi ${customerName},</p>
+      <p>Your appointment with <strong>${businessName}</strong> is <strong>${statusLabel.toLowerCase()}</strong>.</p>
+      <p><strong>Service:</strong> ${serviceName}<br/>
       <strong>Date & time:</strong> ${formatDate(input.startAt)}<br/>
       <strong>End time:</strong> ${formatDate(input.endAt)}</p>
-      <p>Thank you for choosing ${input.businessName}.</p>
+      <p>Thank you for choosing ${businessName}.</p>
     </div>
   `;
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from, to: [input.customerEmail], subject, html }),
-  });
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from, to: [input.customerEmail], subject, html }),
+      signal: AbortSignal.timeout(10_000),
+    });
 
-  if (!response.ok) {
-    console.error("Appointment email failed", await response.text());
+    if (!response.ok) {
+      console.error("Appointment email failed", response.status);
+      return { sent: false, skipped: false };
+    }
+
+    return { sent: true, skipped: false };
+  } catch (error) {
+    console.error("Appointment email request failed", error instanceof Error ? error.message : "Unknown error");
     return { sent: false, skipped: false };
   }
-
-  return { sent: true, skipped: false };
 }
