@@ -27,24 +27,31 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
-  const body = await request.json();
-  if (!Array.isArray(body.hours)) {
-    return NextResponse.json({ error: "hours must be an array" }, { status: 400 });
+  let body: { hours?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (!Array.isArray(body.hours) || body.hours.length > 7) {
+    return NextResponse.json({ error: "hours must be an array containing at most seven entries" }, { status: 400 });
   }
 
   const hours = body.hours as HourInput[];
-  if (!hours.every(isValidHour)) {
-    return NextResponse.json({ error: "Each hour must contain a valid day and time range" }, { status: 400 });
+  const uniqueDays = new Set(hours.map((hour) => hour.dayOfWeek));
+  if (uniqueDays.size !== hours.length || !hours.every(isValidHour)) {
+    return NextResponse.json({ error: "Each day must be unique and contain a valid time range" }, { status: 400 });
   }
 
   const { error: deleteError } = await supabase.from("business_hours").delete().eq("business_id", id);
-  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 400 });
+  if (deleteError) return NextResponse.json({ error: "Unable to update business hours" }, { status: 500 });
 
   if (hours.length > 0) {
     const { error: insertError } = await supabase.from("business_hours").insert(
       hours.map((hour) => ({ business_id: id, day_of_week: hour.dayOfWeek, start_time: hour.startTime, end_time: hour.endTime })),
     );
-    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 400 });
+    if (insertError) return NextResponse.json({ error: "Unable to update business hours" }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });
