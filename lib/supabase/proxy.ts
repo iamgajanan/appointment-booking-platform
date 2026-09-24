@@ -21,9 +21,20 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
-  const isPublicRoute = pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/signup") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password") || pathname.startsWith("/auth/") || pathname.startsWith("/api/auth/");
+  const isCronRoute = pathname === "/api/cron/appointment-reminders";
+  const isPublicRoute =
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/api/auth/") ||
+    isCronRoute;
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
